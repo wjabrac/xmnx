@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 from src.core.events.stream import EventStream
 from src.memory.fs.manager import BrainManager
 from src.memory.vector.engine import VectorEngine
-from src.runtime.sandbox.local import LocalSandbox
+from src.runtime.sandbox.docker import DockerSandbox
 from src.runtime.browser.engine import HermeticBrowser
 from src.interfaces.litellm import LiteLLMProvider
 from src.core.coordinator import Coordinator
@@ -28,7 +28,12 @@ def main():
     brain = BrainManager(base_path="z:/home/willux/Others/XMNX/brain")
     
     # Runtime (Sandbox + Browser)
-    sandbox = LocalSandbox(work_dir="z:/home/willux/Others/XMNX/workspace")
+    work_dir = os.environ.get("XMNX_WORK_DIR", os.path.join(os.getcwd(), "workspace"))
+    sandbox = DockerSandbox(
+        work_dir=work_dir,
+        image=os.environ.get("XMNX_SANDBOX_IMAGE", "xmnx-sandbox:latest"),
+        dockerfile=os.environ.get("XMNX_SANDBOX_DOCKERFILE", "Dockerfile"),
+    )
     # browser = HermeticBrowser() # Keep disabled for now until needed
 
     # LLM
