@@ -83,17 +83,17 @@ class Coordinator:
         state = self.active_tasks[task_id]
         stream = self.brain.get_stream(task_id)
 
-        # 1. Build Context
+        # 1. Build Context using PromptBuilder
+        from src.core.prompts import PromptBuilder
+        
+        # Initialize builder (ToDo: Cache this or move to __init__)
+        builder = PromptBuilder(self.registry.get_schemas())
+        
         history = stream.get_history()
-        messages = self._build_prompt(state, history)
+        messages = builder.build_messages(state.goal, self.sandbox.work_dir, history)
         
         # 2. Call LLM with Tools
         try:
-            # We assume the LLMProvider handles the raw API call.
-            # Ideally we'd pass `tools=self.registry.get_schemas()` here.
-            # But LiteLLMProvider.completion interface needs to support it.
-            # For now, we'll patch specific params in the call directly.
-            
             # Using LiteLLM's provider directly for now to ensure tool passing works
             from litellm import completion
             response = completion(
@@ -159,31 +159,3 @@ class Coordinator:
                 error=str(e),
                 content={"error": str(e)}
             ))
-
-    def _build_prompt(self, state: TaskState, history: List[Event]) -> List[Dict]:
-        """Construct the prompt from event history."""
-        system_prompt = f"""You are XMNX, an autonomous agent.
-Goal: {state.goal}
-Working Directory: {self.sandbox.work_dir}
-
-Instructions:
-1. Analyze the history.
-2. Formulate a plan if needed.
-3. Use tools to execute the plan step by step.
-4. Verify your work.
-"""
-        messages = [{"role": "system", "content": system_prompt}]
-        
-        for event in history:
-            if event.type == "thought":
-                messages.append({"role": "assistant", "content": event.content.get("thought", "")})
-            elif event.type == "action":
-                # In a real replay, we'd need to reconstruct the tool_calls structure
-                # For simplicity, we just append a user message summarizing the action execution
-                pass 
-            elif event.type == "observation":
-                messages.append({"role": "user", "content": f"Observation: {event.content}"})
-            elif event.type == "control" and event.source == "user":
-                 messages.append({"role": "user", "content": f"Request: {event.content.get('goal', '')}"})
-
-        return messages

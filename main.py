@@ -51,7 +51,10 @@ def main():
     step = 0
     while step < args.steps:
         print(f"🔄 Step {step+1}/{args.steps}...")
-        coordinator.tick(task_id)
+        try:
+            coordinator.tick(task_id)
+        except Exception as e:
+            print(f"❌ Error in tick: {e}")
         
         # Check status (naive check for now)
         # In real impl, checking coordinator.active_tasks[task_id].status
