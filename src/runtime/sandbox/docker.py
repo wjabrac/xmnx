@@ -82,18 +82,18 @@ class DockerSandbox(Sandbox):
             return -1, "", str(e)
 
     def read_file(self, path: str) -> str:
-        full_path = os.path.join(self.work_dir, path)
+        full_path = self._resolve_path(path)
         with open(full_path, "r", encoding="utf-8") as f:
             return f.read()
 
     def write_file(self, path: str, content: str):
-        full_path = os.path.join(self.work_dir, path)
+        full_path = self._resolve_path(path)
         os.makedirs(os.path.dirname(full_path), exist_ok=True)
         with open(full_path, "w", encoding="utf-8") as f:
             f.write(content)
 
     def list_files(self, path: str = ".") -> List[str]:
-        full_path = os.path.join(self.work_dir, path)
+        full_path = self._resolve_path(path)
         if not os.path.exists(full_path):
             return []
         return os.listdir(full_path)
@@ -108,3 +108,13 @@ class DockerSandbox(Sandbox):
         with open(snap_path, "w", encoding="utf-8") as f:
             json.dump(state, f, indent=2)
         return snap_path
+
+    def _resolve_path(self, path: str) -> str:
+        if os.path.isabs(path):
+            if os.path.commonpath([path, "/workspace"]) == "/workspace":
+                relative = os.path.relpath(path, "/workspace")
+                return os.path.join(self.work_dir, relative)
+            raise ValueError(
+                f"Absolute path {path} is outside container workspace /workspace"
+            )
+        return os.path.join(self.work_dir, path)
