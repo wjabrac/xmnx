@@ -1,5 +1,6 @@
 import json
 import os
+from pathlib import Path
 import subprocess
 from typing import Tuple, List, Optional
 
@@ -82,21 +83,28 @@ class DockerSandbox(Sandbox):
             return -1, "", str(e)
 
     def read_file(self, path: str) -> str:
-        full_path = os.path.join(self.work_dir, path)
+        full_path = self._resolve_path(path)
         with open(full_path, "r", encoding="utf-8") as f:
             return f.read()
 
     def write_file(self, path: str, content: str):
-        full_path = os.path.join(self.work_dir, path)
+        full_path = self._resolve_path(path)
         os.makedirs(os.path.dirname(full_path), exist_ok=True)
         with open(full_path, "w", encoding="utf-8") as f:
             f.write(content)
 
     def list_files(self, path: str = ".") -> List[str]:
-        full_path = os.path.join(self.work_dir, path)
+        full_path = self._resolve_path(path)
         if not os.path.exists(full_path):
             return []
         return os.listdir(full_path)
+
+    def _resolve_path(self, path: str) -> str:
+        base_path = Path(self.work_dir).resolve()
+        target_path = (base_path / path).resolve()
+        if base_path == target_path or base_path in target_path.parents:
+            return str(target_path)
+        raise PermissionError(f"Access denied: {path}")
 
     def snapshot(self) -> str:
         snap_path = os.path.join(self.work_dir, "snapshot_latest.json")
