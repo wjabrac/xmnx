@@ -1,0 +1,6 @@
+pydantic>=2.0
+lancedb
+uuid
+pyyaml
+python-dotenv
+litellm
