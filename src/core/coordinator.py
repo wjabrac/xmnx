@@ -11,6 +11,7 @@ from src.interfaces.llm import LLMProvider
 from src.core.registry import ToolRegistry
 from src.core.tools.shell import ShellTool
 from src.core.tools.filesystem import ReadFileTool, WriteFileTool, ListFilesTool
+from src.core.tools.editor import EditFileTool, LintTool
 
 class TaskState(BaseModel):
     id: str
@@ -43,6 +44,8 @@ class Coordinator:
         self.registry.register(ReadFileTool(self.sandbox))
         self.registry.register(WriteFileTool(self.sandbox))
         self.registry.register(ListFilesTool(self.sandbox))
+        self.registry.register(EditFileTool(self.sandbox))
+        self.registry.register(LintTool(self.sandbox))
 
     def start_task(self, goal: str) -> str:
         """
