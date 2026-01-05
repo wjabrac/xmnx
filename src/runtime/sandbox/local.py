@@ -1,7 +1,11 @@
-import subprocess
+import hashlib
 import os
-from src.runtime.sandbox.interface import Sandbox
+import subprocess
+import sys
+from datetime import datetime
 from typing import Tuple, List
+
+from src.runtime.sandbox.interface import Sandbox
 
 class LocalSandbox(Sandbox):
     """
@@ -51,10 +55,36 @@ class LocalSandbox(Sandbox):
         """
         import json
         snap_path = os.path.join(self.work_dir, "snapshot_latest.json")
+        safe_env_keys = {
+            "PATH",
+            "PWD",
+            "LANG",
+            "LC_ALL",
+            "TZ",
+            "TERM",
+        }
+        safe_env = {k: os.environ[k] for k in safe_env_keys if k in os.environ}
+        sensitive_keys = {
+            "OPENAI_API_KEY",
+            "GITHUB_TOKEN",
+            "AWS_ACCESS_KEY_ID",
+            "AWS_SECRET_ACCESS_KEY",
+            "AWS_SESSION_TOKEN",
+            "GOOGLE_APPLICATION_CREDENTIALS",
+        }
+        env_hashes = {
+            key: hashlib.sha256(os.environ[key].encode("utf-8")).hexdigest()
+            for key in sensitive_keys
+            if key in os.environ
+        }
         state = {
             "cwd": self.work_dir,
-            "env": dict(os.environ)
+            "env": safe_env,
+            "env_hashes": env_hashes,
+            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "snapshot_version": "v2",
+            "argv": list(sys.argv),
         }
-        with open(snap_path, "w") as f:
+        with open(snap_path, "w", encoding="utf-8") as f:
             json.dump(state, f, indent=2)
         return snap_path

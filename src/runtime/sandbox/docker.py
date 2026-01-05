@@ -1,7 +1,10 @@
+import hashlib
 import json
 import os
 from pathlib import Path
 import subprocess
+import sys
+from datetime import datetime
 from typing import Tuple, List, Optional
 
 from src.runtime.sandbox.interface import Sandbox
@@ -100,18 +103,48 @@ class DockerSandbox(Sandbox):
         return os.listdir(full_path)
 
     def _resolve_path(self, path: str) -> str:
-        base_path = Path(self.work_dir).resolve(strict=False)
-        target_path = (base_path / path).resolve(strict=False)
-        if base_path == target_path or base_path in target_path.parents:
-            return str(target_path)
+    base_path = Path(self.work_dir).resolve()
+    target_path = (base_path / path).resolve()
+
+    try:
+        target_path.relative_to(base_path)
+    except ValueError:
         raise PermissionError(f"Access denied: {path}")
+
+    return str(target_path)
 
     def snapshot(self) -> str:
         snap_path = os.path.join(self.work_dir, "snapshot_latest.json")
+        safe_env_keys = {
+            "PATH",
+            "PWD",
+            "LANG",
+            "LC_ALL",
+            "TZ",
+            "TERM",
+        }
+        safe_env = {k: os.environ[k] for k in safe_env_keys if k in os.environ}
+        sensitive_keys = {
+            "OPENAI_API_KEY",
+            "GITHUB_TOKEN",
+            "AWS_ACCESS_KEY_ID",
+            "AWS_SECRET_ACCESS_KEY",
+            "AWS_SESSION_TOKEN",
+            "GOOGLE_APPLICATION_CREDENTIALS",
+        }
+        env_hashes = {
+            key: hashlib.sha256(os.environ[key].encode("utf-8")).hexdigest()
+            for key in sensitive_keys
+            if key in os.environ
+        }
         state = {
             "cwd": self.work_dir,
-            "env": dict(os.environ),
+            "env": safe_env,
+            "env_hashes": env_hashes,
             "docker_image": self.image,
+            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "snapshot_version": "v2",
+            "argv": list(sys.argv),
         }
         with open(snap_path, "w", encoding="utf-8") as f:
             json.dump(state, f, indent=2)
