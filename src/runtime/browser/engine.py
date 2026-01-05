@@ -9,6 +9,7 @@ class HermeticBrowser:
     def __init__(self, chrome_path: Optional[str] = None):
         # Default to a local 'chrome-win64' folder if not provided
         self.chrome_path = chrome_path or os.path.join(os.getcwd(), "chrome-win64", "chrome.exe")
+        self.process: Optional[subprocess.Popen] = None
         
     def launch(self, headless: bool = True):
         """
@@ -32,3 +33,4 @@ class HermeticBrowser:
     def stop(self):
         if self.process:
             self.process.terminate()
+            self.process = None

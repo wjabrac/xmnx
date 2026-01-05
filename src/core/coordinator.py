@@ -1,6 +1,7 @@
 import uuid
 import json
 from typing import List, Optional, Dict, Any
+
 from pydantic import BaseModel, Field
 
 from src.core.events.stream import EventStream
@@ -8,33 +9,33 @@ from src.core.events.types import Event, ActionEvent, ObservationEvent
 from src.memory.fs.manager import BrainManager
 from src.runtime.sandbox.interface import Sandbox
 from src.interfaces.llm import LLMProvider
+
 from src.core.registry import ToolRegistry
+
 from src.core.tools.shell import ShellTool
 from src.core.tools.filesystem import ReadFileTool, WriteFileTool, ListFilesTool
+
+# All tools from both sides of the merge
 from src.core.tools.editor import EditFileTool, LintTool
+from src.core.tools.browser import BrowserTool
 
 class TaskState(BaseModel):
     id: str
     goal: str
-    status: str = "pending" # pending, active, completed, failed
+    status: str = "pending"  # pending, active, completed, failed
     plan: List[str] = []
     current_step_index: int = 0
     context_summary: str = ""
 
 class Coordinator:
-    """
-    The CWD (Coordinator-Worker-Delegator) Orchestrator.
-    Manages the high-level lifecycle of a Task.
-    """
-    def __init__(self, 
-                 llm: LLMProvider, 
-                 brain: BrainManager, 
-                 sandbox: Sandbox):
+    """The CWD (Coordinator-Worker-Delegator) Orchestrator."""
+
+    def __init__(self, llm: LLMProvider, brain: BrainManager, sandbox: Sandbox):
         self.llm = llm
         self.brain = brain
         self.sandbox = sandbox
         self.active_tasks: Dict[str, TaskState] = {}
-        
+
         # Initialize Tool Registry
         self.registry = ToolRegistry()
         self._register_default_tools()
@@ -44,8 +45,11 @@ class Coordinator:
         self.registry.register(ReadFileTool(self.sandbox))
         self.registry.register(WriteFileTool(self.sandbox))
         self.registry.register(ListFilesTool(self.sandbox))
+
+        # Include both Edit/Lint and Browser
         self.registry.register(EditFileTool(self.sandbox))
         self.registry.register(LintTool(self.sandbox))
+        self.registry.register(BrowserTool())
 
     def start_task(self, goal: str) -> str:
         """

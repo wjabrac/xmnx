@@ -4,3 +4,6 @@ uuid
 pyyaml
 python-dotenv
 litellm
+playwright
+beautifulsoup4
+markdownify
