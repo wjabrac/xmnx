@@ -104,12 +104,13 @@ class DockerSandbox(Sandbox):
 
     def _resolve_path(self, path: str) -> str:
     base_path = Path(self.work_dir).resolve()
-    target_path = (base_path / path).resolve()
-
-    try:
-        target_path.relative_to(base_path)
-    except ValueError:
-        raise PermissionError(f"Access denied: {path}")
+def _resolve_path(self, path: str) -> str:
+    if not hasattr(self, "_resolved_base_path"):
+        self._resolved_base_path = Path(self.work_dir).resolve(strict=False)
+    target_path = (self._resolved_base_path / path).resolve(strict=False)
+    if self._resolved_base_path == target_path or self._resolved_base_path in target_path.parents:
+        return str(target_path)
+    raise PermissionError(f"Access denied: {path}")
 
     return str(target_path)
 
