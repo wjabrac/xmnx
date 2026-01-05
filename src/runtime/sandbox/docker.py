@@ -111,10 +111,14 @@ class DockerSandbox(Sandbox):
 
     def _resolve_path(self, path: str) -> str:
         if os.path.isabs(path):
-            if os.path.commonpath([path, "/workspace"]) == "/workspace":
-                relative = os.path.relpath(path, "/workspace")
-                return os.path.join(self.work_dir, relative)
-            raise ValueError(
-                f"Absolute path {path} is outside container workspace /workspace"
-            )
+            # Normalize path to resolve ".." and "." components for a robust check.
+            normalized_path = os.path.normpath(path)
+
+            if not (normalized_path.startswith('/workspace/') or normalized_path == '/workspace'):
+                raise ValueError(
+                    f"Absolute path {path} is outside container workspace /workspace"
+                )
+            
+            relative = os.path.relpath(normalized_path, "/workspace")
+            return os.path.join(self.work_dir, relative)
         return os.path.join(self.work_dir, path)
